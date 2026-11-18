@@ -24,6 +24,7 @@ export default function Results() {
   const setFlags = (f) => setFilters({ ...filters, ...f });
   const [sort, setSort] = useState('match');
   const [shown, setShown] = useState(6);
+  const [railOpen, setRailOpen] = useState(false);
 
   const personal = hasAnswers(answers);
   const items = useMemo(() => {
@@ -39,7 +40,11 @@ export default function Results() {
   return (
     <main className="results-shell">
       <div className="layout">
-        <aside className="rail" aria-label="Filters and your answers">
+        <aside className={`rail ${railOpen ? 'open' : ''}`} aria-label="Filters and your answers">
+          <div className="rail-mobile-bar">
+            <strong>Answers &amp; filters</strong>
+            <button className="btn primary sm" onClick={() => setRailOpen(false)}>Show {items.length} results</button>
+          </div>
           <div className="rail-scroll">
             <section className="rail-sec">
               <div className="rail-title">
@@ -107,6 +112,7 @@ export default function Results() {
         <div className="results-main">
         <section className="grid-wrap" aria-label="Camera results">
           <div className="grid-head">
+            <button className="filters-toggle btn sm" onClick={() => setRailOpen(true)}><span className="mi" aria-hidden="true">tune</span> Filters</button>
             <p className="result-count" aria-live="polite"><strong>{Math.min(shown, items.length)}</strong> out of <strong>{items.length}</strong> results</p>
             <div className="sort"><span id="sort-l">Sort by</span>
               <Select label="Sort by" value={sort} onChange={setSort} menuAlign="right" options={[{ value: 'match', label: 'Best match' }, { value: 'low', label: 'Price: low to high' }, { value: 'high', label: 'Price: high to low' }, { value: 'light', label: 'Lightest first' }]} />
