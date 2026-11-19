@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { DEFAULT_ANSWERS } from './match.js';
+import { DEFAULT_ANSWERS, migrateAnswers } from './match.js';
 
 export const DEFAULT_FILTERS = { types: [], brands: [], weather: false, ibis: false, evf: false, lens: [], weights: [], sensors: [], easy: false, vid: false, af: false };
 
@@ -24,7 +24,7 @@ function parseHash() {
 
 export function AppProvider({ children }) {
   const [route, setRoute] = useState(parseHash);
-  const [answers, setAnswers] = useState(() => ({ ...DEFAULT_ANSWERS, ...load('frame.answers', {}) }));
+  const [answers, setAnswers] = useState(() => migrateAnswers({ ...DEFAULT_ANSWERS, ...load('frame.answers', {}) }));
   const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS, ...load('frame.filters', {}) }));
   const [saved, setSaved] = useState(() => load('frame.saved', []));
   const [profile, setProfile] = useState(() => load('frame.profile', null));
@@ -33,6 +33,7 @@ export function AppProvider({ children }) {
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('create');
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
@@ -69,17 +70,20 @@ export function AppProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      route, go, back, prevRoute: history[history.length - 1], search, setSearch, answers, setAnswers, filters, setFilters, saved, profile, user, compare, toast, authOpen, setAuthOpen,
+      route, go, back, authMode, setAuthMode, openAuth: (m = 'create') => { setAuthMode(m); setAuthOpen(true); }, prevRoute: history[history.length - 1], search, setSearch, answers, setAnswers, filters, setFilters, saved, profile, user, compare, toast, authOpen, setAuthOpen,
       patch: (p) => setAnswers((a) => ({ ...a, skipped: false, ...p })),
       resetAnswers: () => { setAnswers({ ...DEFAULT_ANSWERS }); setFilters({ ...DEFAULT_FILTERS }); },
       skip: () => setAnswers((a) => ({ ...a, skipped: true })),
       notify: setToast,
-      toggleSaved: (id) =>
+      // saving needs an account: until someone is signed in, the heart opens the account modal instead
+      toggleSaved: (id) => {
+        if (!user) { setAuthMode('create'); setAuthOpen(true); return; }
         setSaved((s) => {
           const on = s.includes(id);
           setToast(on ? 'Removed from saved' : user ? 'Saved to your account' : 'Saved on this device. Create a free account to keep it everywhere.');
           return on ? s.filter((x) => x !== id) : [...s, id];
-        }),
+        });
+      },
       toggleCompare: (id) =>
         setCompare((c) => {
           if (c.includes(id)) return c.filter((x) => x !== id);
@@ -104,7 +108,7 @@ export function AppProvider({ children }) {
         setToast('Signed out. Your saved items stay on this device.');
       },
     }),
-    [route, go, back, history, search, answers, filters, saved, profile, user, compare, toast, authOpen]
+    [route, go, back, history, search, answers, filters, saved, profile, user, compare, toast, authOpen, authMode]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

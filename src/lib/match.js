@@ -1,6 +1,40 @@
 import { CAMERAS } from '../data/cameras.js';
 
-export const DEFAULT_ANSWERS = { exp: null, goals: [], budget: 1000, budgetMin: 0, weight: null, video: null, blur: null, skipped: false };
+export const DEFAULT_ANSWERS = { exp: null, goals: [], budget: 1000, budgetMin: 0, weight: null, video: null, musts: null, skipped: false };
+
+/** Upgrades answers saved by the older quiz (photo/mix/video and the blur question). */
+export function migrateAnswers(a) {
+  const out = { ...a };
+  const oldVideo = { photo: 'none', mix: 'clips', video: 'serious' };
+  if (oldVideo[out.video]) out.video = oldVideo[out.video];
+  if ('blur' in out) {
+    if (out.musts == null && out.blur) out.musts = out.blur === 'yes' ? ['blur'] : [];
+    delete out.blur;
+  }
+  return out;
+}
+
+/** Question 6: things the user does not want to give up (up to two). */
+export const MUSTS = [
+  { id: 'easy', short: 'Simple controls', label: 'Simple controls', hint: 'Beginner-friendly menus and modes' },
+  { id: 'blur', short: 'Blurry backgrounds', label: 'Soft, blurry backgrounds', hint: 'Sharp subject, dreamy background' },
+  { id: 'ibis', short: 'Stabilization', label: 'Steady shots without a tripod', hint: 'Built-in stabilization' },
+  { id: 'weather', short: 'Weather sealing', label: 'Survives rain and dust', hint: 'Weather-sealed body' },
+  { id: 'evf', short: 'Viewfinder', label: 'A viewfinder', hint: 'Frame shots in bright sun' },
+  { id: 'lenses', short: 'Swappable lenses', label: 'Swap lenses as I grow', hint: 'Interchangeable lenses' },
+];
+
+function mustScore(c, m) {
+  switch (m) {
+    case 'easy': return (c.ease - 1) / 4;
+    case 'blur': return c.bokeh / 5;
+    case 'ibis': return c.ibis ? 1 : 0;
+    case 'weather': return c.weather ? 1 : 0;
+    case 'evf': return c.evf ? 1 : 0;
+    case 'lenses': return c.mount !== 'Fixed lens' ? 1 : 0;
+    default: return 0.5;
+  }
+}
 
 const clamp = (n, a = 0, b = 1) => Math.max(a, Math.min(b, n));
 const port = (g) => clamp(1 - (g - 200) / 1000);
@@ -42,20 +76,23 @@ export function scoreCamera(c, a) {
   if (a.goals.length) add('goals', 3, a.goals.reduce((t, g) => t + goalScore(c, g), 0) / a.goals.length);
   add('budget', 1, c.price <= a.budget ? 0.7 + 0.3 * (c.price / a.budget) : 0);
   if (a.weight && a.weight !== 'any') add('weight', 2, weightScore(c, a.weight));
-  if (a.video === 'photo') add('video', 1, photoScore(c));
-  if (a.video === 'mix') add('video', 1.5, 0.5 * (c.video / 5) + 0.5 * photoScore(c));
-  if (a.video === 'video') add('video', 2.5, c.video / 5);
-  if (a.blur === 'yes') add('blur', 3, c.bokeh / 5);
-  if (a.blur === 'plus') add('blur', 1.5, c.bokeh / 5);
+  if (a.video === 'none') add('video', 1.5, photoScore(c));
+  if (a.video === 'clips') add('video', 1, 0.4 * (c.video / 5) + 0.6 * photoScore(c));
+  if (a.video === 'self') add('video', 3, 0.6 * (c.video / 5) + 0.4 * (c.selfie ? 1 : 0));
+  if (a.video === 'serious') add('video', 2.5, 0.75 * (c.video / 5) + 0.25 * (c.ibis ? 1 : 0));
+  (a.musts || []).forEach((m) => add(`must:${m}`, 2.5, mustScore(c, m)));
   const tw = parts.reduce((t, p) => t + p.w, 0) || 1;
   const fit = parts.reduce((t, p) => t + p.w * p.s, 0) / tw;
   return { fit, parts };
 }
 
 export const answeredCount = (a) =>
-  [a.exp, a.goals.length, a.weight, a.video, a.blur].filter(Boolean).length + 1; // budget always has a value
+  [a.exp, a.goals.length, a.weight, a.video, a.musts != null].filter(Boolean).length + 1; // budget always has a value
 
-export const hasAnswers = (a) => !a.skipped && !!(a.exp || a.goals.length || a.weight || a.video || a.blur);
+/** True once at least one quiz question has been answered (even if the quiz was skipped later). */
+export const anyAnswers = (a) => !!(a.exp || a.goals.length || a.weight || a.video || a.musts != null);
+
+export const hasAnswers = (a) => !a.skipped && !!(a.exp || a.goals.length || a.weight || a.video || a.musts?.length);
 
 export function rank(a, filters = {}) {
   const personal = hasAnswers(a);
@@ -118,9 +155,14 @@ export function tradeoff(c) {
 const REASONS = {
   ease: { n: 'Easy to pick up and start shooting', e: 'Streamlined controls and automatic modes when you want them' },
   goals: { n: 'Good at the things you want to photograph', e: 'Strong match for your selected subjects' },
-  weight: { n: 'Light enough to carry around', e: 'Meets your weight limit' },
-  video: { n: 'Handles video well', e: 'Solid video specs for your photo/video mix' },
-  blur: { n: 'Makes that blurry-background look', e: 'Large sensor for shallow depth of field' },
+  weight: { n: 'Easy to carry the way you plan to', e: 'Fits your size and weight limit' },
+  video: { n: 'Handles the kind of video you want', e: 'Video specs suit how you plan to film' },
+  'must:easy': { n: 'Simple to use from day one', e: 'Approachable controls and guided modes' },
+  'must:blur': { n: 'Makes that blurry-background look', e: 'Large sensor for shallow depth of field' },
+  'must:ibis': { n: 'Keeps handheld shots steady', e: 'In-body image stabilization' },
+  'must:weather': { n: 'Handles rain and dust', e: 'Weather-sealed body' },
+  'must:evf': { n: 'Has a viewfinder for bright days', e: 'Built-in electronic viewfinder' },
+  'must:lenses': { n: 'Lets you add lenses later', e: 'Interchangeable-lens mount' },
   budget: { n: 'Fits your budget', e: 'Within your budget' },
 };
 export function reasons(parts, a, n = 2) {
@@ -129,7 +171,8 @@ export function reasons(parts, a, n = 2) {
     .filter((p) => p.s >= 0.7 && p.key !== 'budget')
     .sort((x, y) => y.w * y.s - x.w * x.s)
     .slice(0, n)
-    .map((p) => REASONS[p.key][tone]);
+    .map((p) => REASONS[p.key]?.[tone])
+    .filter(Boolean);
 }
 
 export function fitLabel(pct) {

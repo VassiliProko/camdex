@@ -5,21 +5,15 @@ import CameraCard from '../components/CameraCard.jsx';
 import { RangeSlider } from '../components/RangeSlider.jsx';
 import Select from '../components/Select.jsx';
 import AnswersPanel from '../components/AnswersPanel.jsx';
-import { rank, hasAnswers, money, GOALS } from '../lib/match.js';
+import { Tip } from '../components/ui.jsx';
+import { rank, hasAnswers, anyAnswers, money, GOALS } from '../lib/match.js';
 import { DEFAULT_FILTERS } from '../lib/store.jsx';
 import { TYPES, BRANDS } from '../data/cameras.js';
 
-const LABELS = {
-  exp: { 1: 'Brand new', 2: 'Knows the basics', 3: 'Comfortable with settings' },
-  weight: { pocket: 'Pocket-sized', bag: 'Small bag', any: 'Heavier is fine' },
-  video: { photo: 'Mostly photos', mix: 'Photos and video', video: 'Mostly video' },
-  blur: { yes: 'Wants blurry background', plus: 'Blur is a plus', no: 'Blur does not matter' },
-};
-
 export default function Results() {
-  const { answers, patch, go, resetAnswers, filters, setFilters, search: q } = useApp();
+  const { answers, patch, go, resetAnswers, filters, setFilters, search: q, setSearch } = useApp();
   const { types, brands } = filters;
-  const flags = { weather: filters.weather, ibis: filters.ibis, evf: filters.evf, lens: filters.lens, weights: filters.weights, sensors: filters.sensors, easy: filters.easy, vid: filters.vid, af: filters.af };
+  const flags = { weather: filters.weather, ibis: filters.ibis, evf: filters.evf, lens: filters.lens, sensors: filters.sensors, easy: filters.easy, af: filters.af };
     const setBrands = (v) => setFilters({ ...filters, brands: v });
   const setFlags = (f) => setFilters({ ...filters, ...f });
   const [sort, setSort] = useState('match');
@@ -27,6 +21,8 @@ export default function Results() {
   const [railOpen, setRailOpen] = useState(false);
 
   const personal = hasAnswers(answers);
+  const showKey = anyAnswers(answers);
+  const filtersActive = types.length > 0 || brands.length > 0 || flags.weather || flags.ibis || flags.evf || flags.easy || flags.af || flags.sensors.length > 0 || flags.lens.length > 0;
   const items = useMemo(() => {
     const term = q.trim().toLowerCase();
     const r = rank(answers, { types, brands, ...flags }).filter((it) => !term || `${it.c.name} ${it.c.brand} ${it.c.type} ${it.c.sensor}`.toLowerCase().includes(term));
@@ -72,14 +68,8 @@ export default function Results() {
                   ))}
                 </fieldset>
                 <fieldset>
-                  <legend>Weight</legend>
-                  {[[350, 'Pocket-sized (under 350 g)'], [700, 'Small bag (under 700 g)']].map(([k, l]) => (
-                    <label key={k} className="check"><input type="checkbox" checked={flags.weights.includes(k)} onChange={(e) => setFlags({ weights: e.target.checked ? [...flags.weights, k] : flags.weights.filter((x) => x !== k) })} /> {l}</label>
-                  ))}
-                </fieldset>
-                <fieldset>
                   <legend>Great at</legend>
-                  {[['easy', 'Easy to use'], ['vid', 'Video'], ['af', 'Fast autofocus']].map(([k, l]) => (
+                  {[['easy', 'Easy to use'], ['af', 'Fast autofocus']].map(([k, l]) => (
                     <label key={k} className="check"><input type="checkbox" checked={flags[k]} onChange={(e) => setFlags({ [k]: e.target.checked })} /> {l}</label>
                   ))}
                 </fieldset>
@@ -114,6 +104,15 @@ export default function Results() {
           <div className="grid-head">
             <button className="filters-toggle btn sm" onClick={() => setRailOpen(true)}><span className="mi" aria-hidden="true">tune</span> Filters</button>
             <p className="result-count" aria-live="polite"><strong>{Math.min(shown, items.length)}</strong> out of <strong>{items.length}</strong> results</p>
+            {showKey && (
+              <div className="score-key" aria-label="Match score key">
+                <Tip term="match">Match score</Tip>
+                <span className="k great">85%+</span>
+                <span className="k good">75–84%</span>
+                <span className="k ok">65–74%</span>
+                <span className="k low">Under 65%</span>
+              </div>
+            )}
             <div className="sort"><span id="sort-l">Sort by</span>
               <Select label="Sort by" value={sort} onChange={setSort} menuAlign="right" options={[{ value: 'match', label: 'Best match' }, { value: 'low', label: 'Price: low to high' }, { value: 'high', label: 'Price: high to low' }, { value: 'light', label: 'Lightest first' }]} />
             </div>
@@ -121,9 +120,25 @@ export default function Results() {
           {items.length === 0 ? (
             <div className="empty">
               <img className="sticker-lg" src={`${import.meta.env.BASE_URL}hero-rabbit.webp`} alt="" />
-              <h2>Nothing fits these filters</h2>
-              <p>Try a higher budget or clear a filter. We never show cameras above your budget.</p>
-              <button className="btn primary" onClick={() => { setFilters({ ...DEFAULT_FILTERS }); patch({ budget: Math.min(4000, answers.budget + 500) }); }}>Raise budget by $500 and clear filters</button>
+              {q.trim() ? (
+                <>
+                  <h2>No cameras match “{q.trim()}”</h2>
+                  <p>Check the spelling, or try a brand or type like Canon or mirrorless.</p>
+                  <button className="btn primary" onClick={() => setSearch('')}>Clear search</button>
+                </>
+              ) : filtersActive ? (
+                <>
+                  <h2>Nothing fits these filters</h2>
+                  <p>Remove a filter or two to see more cameras.</p>
+                  <button className="btn primary" onClick={() => setFilters({ ...DEFAULT_FILTERS })}>Clear filters</button>
+                </>
+              ) : (
+                <>
+                  <h2>No cameras to show</h2>
+                  <p>Your answers are narrowing things too far. Start the quiz over to see everything again.</p>
+                  <button className="btn primary" onClick={() => { resetAnswers(); go('#/survey'); }}>Start over</button>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid">

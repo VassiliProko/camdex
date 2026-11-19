@@ -1,5 +1,6 @@
 // Plain-language explanations shown in tooltips. "plain" is for everyone; "more" is added for experienced users.
 export const GLOSSARY = {
+  match: { label: 'Match score', plain: 'How well a camera fits your quiz answers, from 0 to 100%. Higher means a closer fit for what you told us about your experience, subjects, budget and needs.' },
   type: { label: 'Camera type', plain: 'Compact: all-in-one, fits a pocket. Mirrorless: swap lenses, small body. DSLR: older, bulkier style with a mirror and an optical viewfinder. Action: tiny and tough for sports and travel.' },
   sensor: { label: 'Sensor size', plain: 'The sensor is the part that captures light. Bigger usually means better photos in dim rooms and a blurrier background, but a bigger, pricier camera. Phone < 1-inch < Micro Four Thirds < APS-C < Full frame.', more: 'Crop factors: MFT 2×, APS-C ~1.5×, full frame 1×.' },
   mp: { label: 'Megapixels', plain: 'How many dots make up a photo. 20+ is plenty for sharing and prints. More only matters for huge prints or heavy cropping.' },

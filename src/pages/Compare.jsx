@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { X, ExternalLink, Heart, Search, ArrowLeft } from '../components/Icon.jsx';
+import { X, ExternalLink, Heart, Search, ArrowLeft, Columns } from '../components/Icon.jsx';
 import { useApp } from '../lib/store.jsx';
 import { CameraImg, BadgeList, Tip, camById } from '../components/ui.jsx';
 import { FitBadge } from '../components/CameraCard.jsx';
-import { scoreCamera, hasAnswers, money, badges, tradeoff } from '../lib/match.js';
+import { scoreCamera, hasAnswers, anyAnswers, money, badges, tradeoff } from '../lib/match.js';
 import Select from '../components/Select.jsx';
 import { CAMERAS } from '../data/cameras.js';
 
@@ -34,7 +34,7 @@ const SECTIONS = [
 function Picker({ exclude, onPick }) {
   const { answers } = useApp();
   const [q, setQ] = useState('');
-  const personal = hasAnswers(answers) || !!(answers.exp || answers.goals.length || answers.weight || answers.video || answers.blur);
+  const personal = hasAnswers(answers) || anyAnswers(answers);
   const list = CAMERAS.filter((c) => !exclude.includes(c.id) && c.name.toLowerCase().includes(q.trim().toLowerCase()))
     .map((c) => ({ c, fit: personal ? Math.min(99, Math.round(scoreCamera(c, answers).fit * 100)) : null }))
     .sort((a, b) => (personal ? b.fit - a.fit : a.c.price - b.c.price));
@@ -71,47 +71,16 @@ export default function Compare() {
 
   return (
     <main className="page compare">
-      <div className="page-head">
-        {prevRoute?.startsWith('#/camera/') && (
-          <button className="back" onClick={() => back('#/results')}><ArrowLeft size={20} aria-hidden /> Back to camera</button>
-        )}
-        <h1><span className="pill-word">Compare</span></h1>
-      </div>
 
-      {cams.length <= 1 && (
-        <div className="cmp-start">
-          {cams.length === 0 && (
-            <div className="slot-empty">
-              <h2>Choose two cameras</h2>
-              <p>Pick from the list to start comparing.</p>
-              {saved.length >= 2 && <button className="btn sm" onClick={() => setCompareList(saved.slice(0, 3))}>Use my saved cameras</button>}
-            </div>
-          )}
-          {cams.length === 1 && (
-          <article className="solo">
-            <CameraImg cam={cams[0]} />
-            <div className="solo-body">
-              <FitBadge pct={personal ? Math.min(99, Math.round(scoreCamera(cams[0], answers).fit * 100)) : null} />
-              <h2><a href={`#/camera/${cams[0].id}`}>{cams[0].name}</a></h2>
-              <p className="price">{money(cams[0].price)} <small>CAD</small></p>
-              <BadgeList items={badges(cams[0])} />
-              <dl className="mini-specs">
-                {ROWS.filter((r) => ['type', 'sensor', 'mp', 'weight', 'mount'].includes(r[0])).map(([t, l, fmt]) => (
-                  <div key={t}><dt>{l}</dt><dd>{fmt(cams[0])}</dd></div>
-                ))}
-              </dl>
-              <button className="btn sm" onClick={() => setCompareList([])}><X size={16} aria-hidden /> Remove</button>
-            </div>
-          </article>
-          )}
-          <Picker exclude={compare} onPick={(id) => setCompareList([...compare, id])} />
-        </div>
-      )}
-
-      {cams.length > 1 && (
-        <div className="ac" style={{ '--cols': cams.length }}>
+      {(
+        <div className="ac" style={{ '--cols': Math.max(2, cams.length) }}>
           <div className="ac-head">
-            <div className="ac-spacer" aria-hidden="true" />
+            <div className="ac-spacer page-head">
+              {prevRoute?.startsWith('#/camera/') && (
+                <button className="back" onClick={() => back('#/results')}><ArrowLeft size={20} aria-hidden /> Back to camera</button>
+              )}
+              <h1><span className="pill-word"><Columns className="pill-icon" size={40} aria-hidden />Compare</span></h1>
+            </div>
             {cams.map((c) => {
               const fit = personal ? Math.min(99, Math.round(scoreCamera(c, answers).fit * 100)) : null;
               return (
@@ -132,9 +101,21 @@ export default function Compare() {
                 </div>
               );
             })}
+            {cams.length < 2 && Array.from({ length: 2 - cams.length }).map((_, i) => (
+              <div key={`slot-${i}`} className="ac-col ac-empty">
+                <div className="ac-img slot"><span className="mi" aria-hidden="true">add</span><strong>Choose a camera</strong></div>
+                {cams.length === 0 && i === 0 && saved.length >= 2 && (
+                  <button className="btn sm" onClick={() => setCompareList(saved.slice(0, 3))}>Use my saved cameras</button>
+                )}
+              </div>
+            ))}
           </div>
 
-          {SECTIONS.map((sec) => (
+          {cams.length < 2 && (
+            <div className="ac-picker"><Picker exclude={compare} onPick={(id) => setCompareList([...compare, id])} /></div>
+          )}
+
+          {cams.length >= 2 && SECTIONS.map((sec) => (
             <section key={sec.title} className="ac-sec">
               <h3>{sec.title}</h3>
               {sec.rows.map((term) => {
@@ -160,7 +141,7 @@ export default function Compare() {
             </section>
           ))}
 
-          {cams.length < 3 && (
+          {cams.length >= 2 && cams.length < 3 && (
             <div className="ac-add">
               <span id="add-l">Add another camera</span>
               <Select label="Add another camera" value="" onChange={(v) => v && toggleCompare(v)} placeholder="Choose a camera" options={addable.map((c) => ({ value: c.id, label: `${c.name} · ${money(c.price)}` }))} />

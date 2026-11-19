@@ -61,7 +61,7 @@ export function BackButton({ fallback = '#/', label = 'Back' }) {
 }
 
 export function Header() {
-  const { go, saved, user, setAuthOpen, signOut, route, setCompareList, saveProfile, profile, answers, filters, search, setSearch } = useApp();
+  const { go, saved, user, setAuthOpen, openAuth, signOut, route, setCompareList, saveProfile, profile, answers, filters, search, setSearch } = useApp();
   const [menu, setMenu] = useState(false);
   const home = route.path === '/';
   const quiz = route.path === '/survey';
@@ -120,6 +120,12 @@ export function Header() {
         )}
       </nav>
       )}
+      {!quiz && !user && (
+        <div className="auth-btns">
+          <button className="btn ghost sm" onClick={() => openAuth('in')}>Log in</button>
+          <button className="btn primary sm" onClick={() => openAuth('create')}>Sign up</button>
+        </div>
+      )}
     </header>
   );
 }
@@ -138,33 +144,32 @@ export function Toast() {
 }
 
 export function AuthModal() {
-  const { authOpen, setAuthOpen, signIn } = useApp();
-  const [mode, setMode] = useState('create');
+  const { authOpen, setAuthOpen, authMode: mode, setAuthMode: setMode } = useApp();
   const [email, setEmail] = useState('');
   if (!authOpen) return null;
-  const submit = (e) => {
-    e.preventDefault();
-    const name = email.split('@')[0] || 'friend';
-    signIn({ name: name.charAt(0).toUpperCase() + name.slice(1) });
-  };
+  // prototype: the form is display only, nothing is sent or signed in
+  const submit = (e) => e.preventDefault();
   return (
     <div className="backdrop" onClick={() => setAuthOpen(false)}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="auth-h" onClick={(e) => e.stopPropagation()}>
+      <div className="modal auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-h" onClick={(e) => e.stopPropagation()}>
         <button className="icon-btn close" aria-label="Close" onClick={() => setAuthOpen(false)}><X size={20} /></button>
-        <h2 id="auth-h">{mode === 'create' ? 'Save your matches' : 'Welcome back'}</h2>
-        <p className="muted">You never need an account to explore. An account just keeps your saved cameras and answers on every device.</p>
+        <h2 id="auth-h">{mode === 'create' ? 'Create your account' : 'Welcome back'}</h2>
+        <p className="auth-sub">{mode === 'create' ? 'Save cameras and keep your answers on every device.' : 'Log in to see your saved cameras.'}</p>
         <form onSubmit={submit}>
-          <label htmlFor="em">Email</label>
-          <input id="em" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
-          <label htmlFor="pw">Password</label>
-          <input id="pw" type="password" required minLength={4} placeholder="At least 4 characters (demo)" autoComplete={mode === 'create' ? 'new-password' : 'current-password'} />
-          <button className="btn primary block" type="submit">{mode === 'create' ? 'Create account' : 'Sign in'}</button>
+          <div className="auth-field">
+            <label htmlFor="em">Email</label>
+            <input id="em" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+          </div>
+          <div className="auth-field">
+            <label htmlFor="pw">Password</label>
+            <input id="pw" type="password" required minLength={4} placeholder="Password" autoComplete={mode === 'create' ? 'new-password' : 'current-password'} />
+          </div>
+          <button className="btn primary block" type="submit">{mode === 'create' ? 'Create account' : 'Log in'}</button>
         </form>
-        <p className="note">Prototype only: nothing is sent or stored. Enter any values.</p>
-        <button className="btn ghost sm" onClick={() => setMode(mode === 'create' ? 'in' : 'create')}>
-          {mode === 'create' ? 'I already have an account' : 'Create a new account'}
-        </button>
-        <button className="btn ghost sm" onClick={() => setAuthOpen(false)}>Not now, keep exploring</button>
+        <p className="auth-switch">
+          {mode === 'create' ? 'Already have an account?' : 'New to Camdex?'}{' '}
+          <button type="button" onClick={() => setMode(mode === 'create' ? 'in' : 'create')}>{mode === 'create' ? 'Log in' : 'Create an account'}</button>
+        </p>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@ import { useRef, useState } from 'react';
 import { Heart, Columns, ExternalLink, Upload, Check } from '../components/Icon.jsx';
 import { useApp } from '../lib/store.jsx';
 import { BackButton, CameraImg, Tip, camById } from '../components/ui.jsx';
-import CameraCard, { FitBadge } from '../components/CameraCard.jsx';
-import { scoreCamera, hasAnswers, reasons, money, apples, badges, tradeoff, betterFor, fitLabel } from '../lib/match.js';
+import CameraCard, { FitBanner } from '../components/CameraCard.jsx';
+import { scoreCamera, hasAnswers, anyAnswers, reasons, money, apples, badges, tradeoff, betterFor, fitLabel } from '../lib/match.js';
 import { CAMERAS } from '../data/cameras.js';
 import { CREDITS } from '../data/images.js';
 
@@ -17,7 +17,7 @@ export default function Detail({ id }) {
       <main className="page"><BackButton /><div className="empty"><h2>We could not find that camera</h2><button className="btn primary" onClick={() => go('#/results')}>Back to matches</button></div></main>
     );
   }
-  const personal = hasAnswers(answers);
+  const personal = hasAnswers(answers) || anyAnswers(answers);
   const { fit: raw, parts } = scoreCamera(c, answers);
   const fit = personal ? Math.min(99, Math.round(raw * 100)) : null;
   const why = personal ? reasons(parts, answers, 3) : [];
@@ -47,7 +47,7 @@ export default function Detail({ id }) {
           {false && credit && <p className="credit">Photo: {credit.artist || 'Wikimedia Commons contributor'} · {credit.license} · <a href={credit.page} target="_blank" rel="noreferrer">source</a></p>}
         </div>
         <div className="d-info">
-          <FitBadge pct={fit} />
+          <FitBanner pct={fit} className="detail-fit" />
           <h1>{c.name}</h1>
           <p className="d-story">{c.story}</p>
           <div className="d-price">

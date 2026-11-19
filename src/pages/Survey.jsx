@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Check, ArrowLeft } from '../components/Icon.jsx';
 import { useApp } from '../lib/store.jsx';
-import { GOALS, money } from '../lib/match.js';
+import { GOALS, MUSTS, money } from '../lib/match.js';
 import { RangeSlider, AmountField } from '../components/RangeSlider.jsx';
 
 // colours: deep (text/buttons on white), bright (fills with dark text), tint (panel background)
@@ -9,51 +9,54 @@ export const QUESTIONS = [
   { id: 'exp', strip: 'Experience', c: ['#1D5FD1', '#5DAEFF', '#E8F2FF'] },
   { id: 'goals', strip: 'Subjects', c: ['#4338CA', '#9A92FF', '#EEEDFF'] },
   { id: 'budget', strip: 'Budget', c: ['#7B3FD1', '#BE9BFF', '#F4ECFF'] },
-  { id: 'weight', strip: 'Weight', c: ['#0B7A75', '#4FD8CB', '#E1F8F6'] },
+  { id: 'weight', strip: 'Carry', c: ['#0B7A75', '#4FD8CB', '#E1F8F6'] },
   { id: 'video', strip: 'Video', c: ['#0A6C8C', '#58CDF0', '#E1F6FD'] },
-  { id: 'blur', strip: 'Blur', c: ['#0E7753', '#5BDBAA', '#E2F8EF'] },
+  { id: 'musts', strip: 'Must-haves', c: ['#0E7753', '#5BDBAA', '#E2F8EF'] },
 ];
 
 export const OPTS = {
   exp: [
-    [1, 'Brand new', 'I have never used a real camera'],
-    [2, 'I know the basics', 'I have used one a few times'],
-    [3, 'Comfortable with settings', 'I can use manual mode'],
+    [1, 'Just my phone', 'I have not used a real camera yet'],
+    [2, 'I know the basics', 'I have used a camera a few times'],
+    [3, 'I am comfortable with manual settings', 'I can set aperture, shutter speed and ISO'],
   ],
   weight: [
-    ['pocket', 'Pocket-sized', 'Under 350 g, about 2 apples'],
-    ['bag', 'Small bag', 'Up to 700 g, about 4 apples'],
-    ['any', 'Heavier is fine', 'I will carry what it takes'],
+    ['pocket', 'In a jacket pocket', 'Under 350 g, about 2 apples'],
+    ['bag', 'In a small bag or purse', 'Up to 700 g, about 4 apples'],
+    ['any', 'In a camera bag', 'Size does not matter'],
   ],
   video: [
-    ['photo', 'Mostly photos', 'Video is a rare extra'],
-    ['mix', 'A mix of both', 'Photos and clips'],
-    ['video', 'Mostly video', 'Vlogs, events, content'],
-  ],
-  blur: [
-    ['yes', 'Absolutely', 'That soft, blurry background look'],
-    ['plus', 'It is a plus', 'Nice to have'],
-    ['no', 'Does not matter', 'Sharp everywhere is fine'],
+    ['none', 'Photos only', 'Video does not matter to me'],
+    ['clips', 'Quick clips', 'Short videos of trips and friends'],
+    ['self', 'Filming myself', 'Vlogs and talking to the camera'],
+    ['serious', 'Serious video projects', 'Short films, events, content work'],
   ],
 };
 
 const TITLE = {
-  exp: ['How comfortable are you with ', 'cameras', '?'],
-  goals: ['What do you most want to ', 'photograph', '?'],
-  budget: ['What is your maximum ', 'budget', '?'],
-  weight: ['How much ', 'weight', ' can you carry?'],
-  video: ['Do you shoot ', 'photos or video', '?'],
-  blur: ['Do you want photos with a ', 'blurry background', '?'],
+  exp: ['Where are you ', 'starting', ' from?'],
+  goals: ['What will you ', 'photograph', ' most?'],
+  budget: ['What is the most you want to ', 'spend', '?'],
+  weight: ['How will you usually ', 'carry', ' it?'],
+  video: ['What kind of ', 'video', ', if any?'],
+  musts: ['Anything you ', 'can\u2019t live without', '?'],
 };
 
-const STICKER = { exp: 'hero-camera.webp', budget: 'hero-dollar.webp' };
+const STICKER = { exp: 'hero-camera.webp', goals: 'hero-mountains.webp', budget: 'hero-dollar.webp', weight: 'hero-bag.webp', video: 'hero-video.webp', musts: 'hero-checklist.webp' };
 
 const answered = (id, a) =>
   id === 'goals' ? a.goals.length > 0 : id === 'budget' ? a.budgetSet : a[id] != null;
 
+export function mustsSummary(musts) {
+  if (musts == null) return null;
+  if (!musts.length) return 'No must-haves';
+  return musts.map((m) => MUSTS.find((x) => x.id === m)?.short).join(', ');
+}
+
 function summary(id, a) {
   if (id === 'goals') return a.goals.map((g) => GOALS.find((x) => x.id === g)?.label.split(' ')[0]).join(', ');
   if (id === 'budget') return money(a.budget);
+  if (id === 'musts') return mustsSummary(a.musts) ?? '';
   const o = OPTS[id]?.find((x) => x[0] === a[id]);
   return o ? o[1] : '';
 }
@@ -80,6 +83,11 @@ export default function Survey() {
     const cur = answers.goals;
     if (cur.includes(id)) return patch({ goals: cur.filter((g) => g !== id) });
     patch({ goals: cur.length >= 2 ? [cur[1], id] : [...cur, id] });
+  };
+  const toggleMust = (id) => {
+    const cur = answers.musts || [];
+    if (cur.includes(id)) { const rest = cur.filter((m) => m !== id); return patch({ musts: rest.length ? rest : null }); }
+    patch({ musts: cur.length >= 2 ? [cur[1], id] : [...cur, id] });
   };
 
   return (
@@ -136,6 +144,34 @@ export default function Survey() {
                     </>
                   )}
 
+                  {q.id === 'musts' && (
+                    <>
+                      <p className="hint">Pick up to two. They count heavily in your matches.</p>
+                      <div className="opts grid2">
+                        {MUSTS.map((m) => {
+                          const on = (answers.musts || []).includes(m.id);
+                          return (
+                            <button key={m.id} className={`opt ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => toggleMust(m.id)}>
+                              <span className="opt-main">{m.label}</span>
+                              <span className="opt-sub">{m.hint}</span>
+                              {on && <Check size={18} className="opt-check" aria-hidden />}
+                            </button>
+                          );
+                        })}
+                        {(() => {
+                          const on = Array.isArray(answers.musts) && answers.musts.length === 0;
+                          return (
+                            <button className={`opt ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => patch({ musts: [] })}>
+                              <span className="opt-main">Not sure</span>
+                              <span className="opt-sub">No must-haves, show me the best fits</span>
+                              {on && <Check size={18} className="opt-check" aria-hidden />}
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    </>
+                  )}
+
                   {q.id === 'budget' && (
                     <div className="budget">
                       <output className="big-num">
@@ -151,7 +187,7 @@ export default function Survey() {
                         <AmountField id="budget-max" label="Maximum" value={answers.budget} min={Math.max(answers.budgetMin || 0, 0)} max={10000}
                           onCommit={(v, done) => { setBudgetSet(true); patch({ budget: Math.max(v, answers.budgetMin || 0) }); }} />
                       </div>
-                      <p id="budget-help" className="hint">Set a minimum too if you only want cameras above a price. Approximate retail price with a basic lens, before tax. We never show anything outside your range.</p>
+                      <p id="budget-help" className="hint">Ready to shoot, including a starter lens, before tax (approximate CAD retail). Set a minimum too if you only want cameras above a price. We never show anything outside your range.</p>
                     </div>
                   )}
 
@@ -172,7 +208,7 @@ export default function Survey() {
 
                   <button
                     className="btn primary next"
-                    disabled={q.id === 'goals' ? !answers.goals.length : q.id === 'budget' ? false : answers[q.id] == null}
+                    disabled={q.id === 'goals' ? !answers.goals.length : q.id === 'musts' ? !Array.isArray(answers.musts) : q.id === 'budget' ? false : answers[q.id] == null}
                     onClick={() => { if (q.id === 'budget') setBudgetSet(true); next(); }}
                   >
                     {active === 5 ? 'See my matches' : 'Continue'} <ArrowRight size={18} aria-hidden />

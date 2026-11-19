@@ -1,7 +1,7 @@
 import { Heart, Columns, Check } from './Icon.jsx';
 import { useApp } from '../lib/store.jsx';
 import { CameraImg } from './ui.jsx';
-import { tradeoff, reasons, money, fitLabel } from '../lib/match.js';
+import { tradeoff, reasons, money, fitLabel, scoreCamera, anyAnswers } from '../lib/match.js';
 
 export function FitBadge({ pct }) {
   if (pct == null) return null;
@@ -12,23 +12,41 @@ export function FitBadge({ pct }) {
   );
 }
 
+export function fitTier(pct) {
+  const tier = pct >= 85 ? 'great' : pct >= 75 ? 'good' : pct >= 65 ? 'ok' : 'low';
+  return { tier, label: { great: 'Great match', good: 'Good match', ok: 'Fair match', low: 'Possible match' }[tier] };
+}
+
+export function FitBanner({ pct, className = '' }) {
+  if (pct == null) return null;
+  const { tier, label } = fitTier(pct);
+  return (
+    <div className={`fit-banner ${tier} ${className}`} role="group" aria-label={`Match score ${pct}%`}>
+      <span className="fit-label">{label}</span>
+      <span className="fit-num">{pct}%</span>
+    </div>
+  );
+}
+
 export default function CameraCard({ item, rank }) {
   const { c, fit, parts } = item;
   const { go, saved, toggleSaved, setCompareList, answers } = useApp();
   const isSaved = saved.includes(c.id);
+  const hasAny = anyAnswers(answers);
+  const score = fit ?? (hasAny ? Math.min(99, Math.round(scoreCamera(c, answers).fit * 100)) : null);
   const why = fit == null ? [] : reasons(parts, answers, 2);
   return (
-    <article className="card cam-card">
+    <article className="card cam-card clickable" onClick={(e) => { if (!e.target.closest('button, a')) go(`#/camera/${c.id}`); }}>
       <div className="card-media">
         <button className="media-btn" onClick={() => go(`#/camera/${c.id}`)} aria-label={`View ${c.name}`}>
           <CameraImg cam={c} />
         </button>
-        {rank === 0 && fit != null && <span className="ribbon">Top match</span>}
+        {rank === 0 && score != null && <span className="ribbon">Top match</span>}
       </div>
       <div className="card-body">
+        <FitBanner pct={score} />
         <div className="card-title">
           <h3><a href={`#/camera/${c.id}`}>{c.name}</a></h3>
-          <FitBadge pct={fit} />
         </div>
         <p className="price">{money(c.price)} <small>CAD</small></p>
         <p className="meta">{c.type} · {c.sensor} · {c.grams} g</p>

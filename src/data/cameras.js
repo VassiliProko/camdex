@@ -57,6 +57,9 @@ const rows = [
   ['canon-m50ii','Canon','EOS M50 Mark II','Canon EOS M50 Mark II','Mirrorless','APS-C',24,387,800,500,650,4.5,3.5,3.5,0,0,1,2020,'Canon EF-M','Popular with first-time vloggers thanks to a flip-out screen and live-streaming support.'],
 ];
 
+// Cameras whose screen cannot face forward (fixed or tilt-only), so you cannot frame yourself while filming.
+const NO_SELFIE = new Set(['ricoh-gr3x','fuji-x100vi','lumix-lx100-2','fuji-xhalf','fuji-xt50','sony-rx10-4','canon-r100','fuji-xt30-2','fuji-xt5','sony-a7iii','canon-t7','nikon-d3500','nikon-d7500']);
+
 const sensorScore = { 'Full frame': 5, 'APS-C': 4, 'Micro Four Thirds': 3, '1-inch': 2.5 };
 
 export const ALL_CAMERAS = rows.map(
@@ -67,6 +70,7 @@ export const ALL_CAMERAS = rows.map(
       id, brand, model, name: `${brand} ${model}`, search, type, sensor, mp, grams, price,
       usedLo, usedHi, ease, af, video, ibis: !!ibis, weather: !!weather, evf: !!evf, year, mount, story,
       sensorQ,
+      selfie: !NO_SELFIE.has(id),
       bokeh: Math.min(5, sensorQ + (interchangeable ? 0.5 : 0)),
       lowLight: sensorQ,
     };
